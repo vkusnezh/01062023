@@ -75,24 +75,6 @@ void MainWindow::on_pushButton_clicked()
             }
         }
 
-
-        QString filename = "C:/Users/38063/Desktop/Infineon_/temp.txt";
-        QFile fileout(filename);
-        if (fileout.open(QFile::ReadWrite | QFile::Text))
-        {
-            QTextStream out(&fileout);
-            // loop through 2d array and add
-            for (unsigned int i = 0; i < rows; i++)
-            {
-                for (unsigned int j = 0; j < cols; j++)
-                {
-                    out << imgArray[i][j];
-                }
-                // end line after each column, go to next row
-                out << " " << Qt::endl;
-            }
-        }
-
         // update UI with information, label text must be a Qt string
         ui->dims->setText(QString::fromStdString("W: " + std::to_string(cols) + "  H: " + std::to_string(rows)));
         float pD = ((float)numBlackPixels/(float)(cols*rows))*100;
@@ -105,7 +87,7 @@ void MainWindow::on_pushButton_clicked()
         QImage originalImage = originalPixmap.toImage(); // Convert QPixmap to QImage for segmentation
 
         // Create a segmented image with the same dimensions as the original image
-        QImage segmentedImage = QImage(originalImage.size(), QImage::Format_ARGB32);
+       segmentedImage = QImage(originalImage.size(), QImage::Format_ARGB32);
 
         // Iterate over the pixels of the original image
         for (int y = 0; y < originalImage.height(); ++y) {
@@ -117,12 +99,21 @@ void MainWindow::on_pushButton_clicked()
                 int red = qRed(pixelColor);
                 int green = qGreen(pixelColor);
                 int blue = qBlue(pixelColor);
-
+/*
                 bool isSegment = false;
                 // Example segmentation criteria: segment if red component is greater than green and blue components
                 if (red > green && red > blue) {
                     isSegment = true;
                 }
+*/
+                bool isSegment = false;
+                // Example segmentation criteria: segment if the sum of RGB components is below a threshold
+                int sumThreshold = 550;
+                int sum = red + green + blue;
+                if (sum < sumThreshold) {
+                    isSegment = true;
+                }
+
 
                 if (isSegment) {
                     // Set the pixel in the segmented image to the original color
@@ -142,63 +133,98 @@ void MainWindow::on_pushButton_clicked()
         ui->label_pic2->show();
     }
 }
+//        //display clickPosition
+//QString pointString = QString::number(clickPosition.x()) + ", " + QString::number(clickPosition.y());
+//ui->pDark_2->setText(pointString);
 
 void MainWindow::mousePressEvent(QMouseEvent *event) {
-    // Define variables to store the selected segment
-    QVector<QPoint> selectedSegment;
-    double segmentArea = 0.0;
+    // Check if the click position is within the boundaries of the image
+    QRect labelRect = ui->label_pic2->geometry();
+    if (!labelRect.contains(event->pos())) {
+        return;
+    }
 
     if (event->button() == Qt::LeftButton) {
         // Get the position of the click
         QPoint clickPosition = event->pos();
 
-        // Check if the click position is within the boundaries of the image
-        QRect labelRect = ui->label_pic2->geometry();
-        if (labelRect.contains(clickPosition)) {
-            // Clear the previously selected segment
-            selectedSegment.clear();
+        // Clear the previously selected segment
+        selectedSegment.clear();
 
-            QString pointString = QString::number(clickPosition.x()) + ", " + QString::number(clickPosition.y());
-            ui->pDark_2->setText(pointString);
+        // Add the click position to the selected segment
+        selectedSegment.append(clickPosition);
 
-            // Add the click position to the selected segment
-            selectedSegment.append(clickPosition);
+        //display clickPosition
+        QString pointString = QString::number(clickPosition.x()) + ", " + QString::number(clickPosition.y());
+        ui->pDark_2->setText(pointString);
 
-            // Calculate the perimeter coordinates
-            QString varText;
-            for (const QPoint& point : selectedSegment) {
-//                stream() << "X:" << point.x() << ", Y:" << point.y();
-                varText.append(QString("X=%1, Y=%2").arg(point.x()).arg(point.y()));
-            }
+        // Calculate the perimeter coordinates and area of the segment
+        calculateSegmentProperties();
 
-            // Calculate the area of the segment (in % of the total image area)
-            int imageArea = segmentedImage.width() * segmentedImage.height();
-            segmentArea = (static_cast<double>(selectedSegment.size()) / imageArea) * 100.0;
-
-            // Display the calculated area
-            ui->pDark_3->setText(QString::fromStdString(std::to_string(segmentArea)));
-
-            ui->pDark_4->setText(varText);
-
-            // Update the QLabel to draw the selected segment
-            ui->label_pic2->update();
-        }
+        // Update the QLabel to draw the selected segment
+        ui->label_pic2->update();
     }
 }
 
-void MainWindow::paintEvent(QPaintEvent *event) {
-    QMainWindow::paintEvent(event);
+void MainWindow::calculateSegmentProperties() {
+    // Expand the selected segment to neighboring pixels with the same color
+    QColor clickColor = segmentedImage.pixel(selectedSegment.first());
+    expandSegment(clickColor);
 
-    // Get the position of the QLabel relative to its parent widget
-    QPoint labelPosition = ui->label_pic2->mapToParent(QPoint(0, 0));
+    // Calculate the area of the segment (in % of the total image area)
+    int imageArea = segmentedImage.width() * segmentedImage.height();
+    float segmentArea = (static_cast<double>(selectedSegment.size()) / imageArea) * 100.0;
 
-    QPainter painter(this);
-    painter.setPen(Qt::red);
+    // Calculate the coordinates of the segment edge
+    QString segmentEdge;
+    for (const QPoint& point : selectedSegment) {
+        segmentEdge.append(QString("X=%1, Y=%2\n").arg(point.x()).arg(point.y()));
+    }
 
-    for (int i = 1; i < selectedSegment.size(); ++i) {
-        // Adjust the coordinates based on the position of the QLabel
-        QPoint startPoint = selectedSegment[i - 1] + labelPosition;
-        QPoint endPoint = selectedSegment[i] + labelPosition;
-        painter.drawLine(startPoint, endPoint);
+    // Display the calculated area and segment edge
+    ui->pDark_3->setText(QString::number(segmentArea));
+    ui->pDark_4->setText(segmentEdge);
+}
+
+void MainWindow::expandSegment(const QColor& color) {
+    QQueue<QPoint> queue;
+    for (const QPoint& point : selectedSegment) {
+        queue.enqueue(point);
+    }
+
+    while (!queue.isEmpty()) {
+        QPoint currentPos = queue.dequeue();
+        if (selectedSegment.contains(currentPos)) {
+            continue;  // Skip if already processed
+        }
+
+        // Add the current position to the selected segment
+        selectedSegment.append(currentPos);
+
+        // Get the color of the current position
+        QColor currentColor = segmentedImage.pixel(currentPos);
+
+        // Check if the color matches the clicked color
+        if (currentColor == color) {
+            // Check neighboring pixels (up, down, left, right)
+            QPoint neighbors[] = {
+                QPoint(currentPos.x(), currentPos.y() - 1),  // Up
+                QPoint(currentPos.x(), currentPos.y() + 1),  // Down
+                QPoint(currentPos.x() - 1, currentPos.y()),  // Left
+                QPoint(currentPos.x() + 1, currentPos.y())   // Right
+            };
+
+            for (const QPoint& neighbor : neighbors) {
+                // Check if the neighbor is within the image boundaries
+                if (neighbor.x() >= 0 && neighbor.x() < segmentedImage.width() &&
+                    neighbor.y() >= 0 && neighbor.y() < segmentedImage.height()) {
+                    // Check if the neighbor is not already in the selected segment
+                    if (!selectedSegment.contains(neighbor)) {
+                        // Enqueue the neighbor for processing
+                        queue.enqueue(neighbor);
+                    }
+                }
+            }
+        }
     }
 }
