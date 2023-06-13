@@ -206,7 +206,7 @@
     <property name="geometry">
      <rect>
       <x>80</x>
-      <y>290</y>
+      <y>260</y>
       <width>250</width>
       <height>16</height>
      </rect>
@@ -225,25 +225,6 @@
     </property>
     <property name="text">
      <string>Segmented image based on color</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_pic2">
-    <property name="geometry">
-     <rect>
-      <x>80</x>
-      <y>310</y>
-      <width>451</width>
-      <height>201</height>
-     </rect>
-    </property>
-    <property name="maximumSize">
-     <size>
-      <width>500</width>
-      <height>500</height>
-     </size>
-    </property>
-    <property name="text">
-     <string>TextLabel</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_7">
@@ -388,6 +369,25 @@
     </property>
     <property name="text">
      <string>Perimeter coordinates:</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_pic_2">
+    <property name="geometry">
+     <rect>
+      <x>80</x>
+      <y>280</y>
+      <width>451</width>
+      <height>201</height>
+     </rect>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>500</width>
+      <height>500</height>
+     </size>
+    </property>
+    <property name="text">
+     <string>TextLabel</string>
     </property>
    </widget>
   </widget>
