@@ -31,8 +31,9 @@ private slots:
     void mousePressedSlot(const QPoint& pos);
 //    void calculateSegmentProperties();
 //    void expandSegment(const QColor& color);
-    QVector<QPoint> expandSegment(const QColor& color);
+    QVector<QPoint> expandSegment(const QPoint& labelPos);
     void calculateSegmentProperties(const QVector<QPoint>& perimeterCoordinates);
+    bool eventFilter(QObject* object, QEvent* event);
 
 private:
     Ui::MainWindow *ui;
@@ -41,8 +42,9 @@ private:
     QImage originalImage;  // Original image
     QImage segmentedImage; // Segmented image
     QPixmap segmentedPixmap;
-    QVector<QPoint> selectedSegment; // Selected segment
-//    QVector<QPoint> perimeterCoordinates;
+//    QVector<QPoint> selectedSegment; // Selected segment
+    QVector<QPoint> perimeterCoordinates;
+    QPoint labelPos;
 };
 
 
