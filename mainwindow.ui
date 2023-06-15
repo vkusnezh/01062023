@@ -66,7 +66,7 @@
    <widget class="QLabel" name="label_pic">
     <property name="geometry">
      <rect>
-      <x>80</x>
+      <x>20</x>
       <y>50</y>
       <width>451</width>
       <height>201</height>
@@ -230,7 +230,7 @@
    <widget class="QLabel" name="label_7">
     <property name="geometry">
      <rect>
-      <x>540</x>
+      <x>580</x>
       <y>290</y>
       <width>91</width>
       <height>21</height>
@@ -254,7 +254,7 @@
    <widget class="QLabel" name="pDark_2">
     <property name="geometry">
      <rect>
-      <x>660</x>
+      <x>700</x>
       <y>290</y>
       <width>200</width>
       <height>21</height>
@@ -278,7 +278,7 @@
    <widget class="QLabel" name="pDark_3">
     <property name="geometry">
      <rect>
-      <x>660</x>
+      <x>700</x>
       <y>310</y>
       <width>200</width>
       <height>21</height>
@@ -293,6 +293,7 @@
     <property name="font">
      <font>
       <pointsize>10</pointsize>
+      <bold>true</bold>
      </font>
     </property>
     <property name="text">
@@ -302,7 +303,7 @@
    <widget class="QLabel" name="label_8">
     <property name="geometry">
      <rect>
-      <x>540</x>
+      <x>580</x>
       <y>310</y>
       <width>101</width>
       <height>21</height>
@@ -326,32 +327,36 @@
    <widget class="QLabel" name="pDark_4">
     <property name="geometry">
      <rect>
-      <x>540</x>
-      <y>360</y>
-      <width>191</width>
-      <height>131</height>
+      <x>729</x>
+      <y>330</y>
+      <width>151</width>
+      <height>231</height>
      </rect>
     </property>
     <property name="maximumSize">
      <size>
-      <width>200</width>
-      <height>500</height>
+      <width>300</width>
+      <height>700</height>
      </size>
     </property>
     <property name="font">
      <font>
       <pointsize>10</pointsize>
+      <bold>false</bold>
      </font>
     </property>
     <property name="text">
-     <string>Perimeter coordinates:</string>
+     <string/>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignHCenter|Qt::AlignTop</set>
     </property>
    </widget>
    <widget class="QLabel" name="label_9">
     <property name="geometry">
      <rect>
-      <x>540</x>
-      <y>340</y>
+      <x>580</x>
+      <y>350</y>
       <width>141</width>
       <height>21</height>
      </rect>
@@ -374,7 +379,7 @@
    <widget class="QLabel" name="label_pic_2">
     <property name="geometry">
      <rect>
-      <x>80</x>
+      <x>20</x>
       <y>280</y>
       <width>451</width>
       <height>201</height>
