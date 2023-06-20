@@ -23,7 +23,7 @@
    <widget class="QPushButton" name="pushButton">
     <property name="geometry">
      <rect>
-      <x>180</x>
+      <x>220</x>
       <y>10</y>
       <width>80</width>
       <height>24</height>
@@ -42,7 +42,7 @@
    <widget class="QLabel" name="label">
     <property name="geometry">
      <rect>
-      <x>82</x>
+      <x>122</x>
       <y>13</y>
       <width>101</width>
       <height>16</height>
@@ -66,9 +66,9 @@
    <widget class="QLabel" name="label_pic">
     <property name="geometry">
      <rect>
-      <x>20</x>
+      <x>60</x>
       <y>50</y>
-      <width>451</width>
+      <width>381</width>
       <height>201</height>
      </rect>
     </property>
@@ -205,7 +205,7 @@
    <widget class="QLabel" name="label_2">
     <property name="geometry">
      <rect>
-      <x>80</x>
+      <x>120</x>
       <y>260</y>
       <width>250</width>
       <height>16</height>
@@ -379,10 +379,10 @@
    <widget class="QLabel" name="label_pic_2">
     <property name="geometry">
      <rect>
-      <x>20</x>
+      <x>60</x>
       <y>280</y>
-      <width>451</width>
-      <height>201</height>
+      <width>381</width>
+      <height>251</height>
      </rect>
     </property>
     <property name="maximumSize">
