@@ -22,7 +22,23 @@
 #include <QGraphicsPixmapItem>
 #include <QTime>
 #include <QDateTime>
+#include <QStack>
+#include <algorithm> // Include the <algorithm> header for std::sort
 #include <cmath>
+
+// min of red + green + blue for image segmentation to deside if pixel is a color one
+const double minRGBthreshold = 15;
+// min alpha with minRGBthreshold for image segmentation to decide if pixel is a background
+const double minAthreshold = 240;
+
+//threshold of red + green + blue to consider as viable for segmentation
+const double sumThresholdValue = 750; //
+
+//create an array of QColor objects that have red, green, and blue values within 5% of the range from neighborColor,
+// for function expandSegment to expand segment based on clicked color
+//In practical terms, it is often recommended to ensure a minimum perceptual difference
+//of around 5-10 units in the RGB parameters to make noticeable changes for most individuals under normal viewing conditions.
+const double currentColorRange = 0.01f;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
@@ -79,7 +95,7 @@ void MainWindow::on_pushButton_clicked()
 
                 // If black, assign 1
                 // Black r = 0, g = 0, b = 0, a = 255
-                if (r + g + b < 20 && a > 240)
+                if (r + g + b < minRGBthreshold && a > minAthreshold)
                 {
                     imgArray[i][j] = 1;
                     numBlackPixels += 1;
@@ -112,10 +128,9 @@ void MainWindow::on_pushButton_clicked()
                 int blue = qBlue(pixelColor);
 
                 bool isSegment = false;
-                // Example segmentation criteria: segment if the sum of RGB components is below a threshold
-                int sumThreshold = 550;
+                // Segmentation criteria: segment if the sum of RGB components is below a threshold
                 int sum = red + green + blue;
-                if (sum < sumThreshold)
+                if (sum < sumThresholdValue)
                 {
                     isSegment = true;
                 }
@@ -123,8 +138,8 @@ void MainWindow::on_pushButton_clicked()
                 if (isSegment)
                 {
                     // Set the pixel in the segmented image to the original color
-                    //segmentedImage.setPixel(x, y, pixelColor);
-                    segmentedImage.setPixel(x, y, qRgb(255, 255, 255));
+                    segmentedImage.setPixel(x, y, pixelColor);
+                    //segmentedImage.setPixel(x, y, qRgb(255, 255, 255));
                 }
                 else
                 {
@@ -140,19 +155,6 @@ void MainWindow::on_pushButton_clicked()
 
         // Set the alignment of label_pic_2 to top-left
         ui->label_pic_2->setAlignment(Qt::AlignTop | Qt::AlignLeft);
-/*
-        // Create an instance of ClickableLabel and assign it to label_pic2
-        label_pic2 = new ClickableLabel(this);
-
-        // Create a layout and set it as the central widget layout
-        QHBoxLayout* layout = new QHBoxLayout(ui->centralwidget);
-        layout->addWidget(label_pic2);
-        //layout->setContentsMargins(70, 250, 300, 20);
-        layout->setContentsMargins(0, 20, 0, 0);
-
-        // Connect clicked signal of label_pic2 to slot mousePressedSlot
-        connect(label_pic2, &ClickableLabel::mousePressed, this, &MainWindow::mousePressedSlot);
-*/
     }
 }
 
@@ -172,18 +174,10 @@ bool MainWindow::eventFilter(QObject* object, QEvent* event)
     return QMainWindow::eventFilter(object, event);
 }
 
-
-
 void MainWindow::mousePressedSlot(const QPoint& pos)
 {
     // Convert the click position to the coordinates of label_pic_2
     QPoint cursorPos = ui->label_pic_2->mapFromGlobal(ui->label_pic_2->mapToGlobal(pos));
-
-    // Clear the previously selected segment
-    //selectedSegment.clear();
-
-    // Add the click position to the selected segment
-    //selectedSegment.append(cursorPos);
 
     // Display the click position
     QString pointString = QString("%1, %2").arg(cursorPos.x()).arg(cursorPos.y());
@@ -196,20 +190,41 @@ void MainWindow::mousePressedSlot(const QPoint& pos)
 
     calculateSegmentProperties(perimeterCoordinates);
 
+    // Create a QPainter object for drawing of perimeter coordinates
     // Update label_pic2 to draw the selected segment
-    ui->label_pic_2->update();
+    QPixmap segmentedPixmapCopy = QPixmap::fromImage(segmentedImage);
+    QPainter painter(&segmentedPixmapCopy);
+    QPen pen(Qt::red);
+    pen.setWidth(5);
+    painter.setPen(pen);
+
+    for (const QPoint& point : perimeterCoordinates) {
+        painter.drawPoint(point);
+    }
+
+    painter.end();
+
+    // Get label dimensions
+    int w = ui->label_pic->width();
+    int h = ui->label_pic->height();
+    ui->label_pic_2->setPixmap(segmentedPixmapCopy.scaled(w, h, Qt::KeepAspectRatio));
 }
 
+ //Function uses a breadth-first search (BFS) algorithm to explore the neighboring pixels of the currentPos
+ //and collects all the pixels with the same color as currentColor
+
 QVector<QPoint> MainWindow::expandSegment(const QPoint& currentPos)
-{   //Function uses a breadth-first search (BFS) algorithm to explore the neighboring pixels of the currentPos
-    //and collects all the pixels with the same color as currentColor
+{
     QVector<QPoint> perimeterCoordinates;
     QVector<QPoint> segmentCoordinates;
     QQueue<QPoint> queue;
     queue.enqueue(currentPos);
 
     // Get the color of the current position
-    QColor currentColor = segmentedImage.pixelColor(currentPos);
+    const QColor currentColor = segmentedImage.pixelColor(currentPos);
+    //QRgb currentColor = rgba.segmentedImage(currentPos);
+    //QColor currentColor = segmentedImage.pixel(currentPos);
+
     qDebug() << "MainWindow::expandSegment, Current Color:" << currentColor;
 
     if (currentColor == qRgb(0, 0, 0))
@@ -217,6 +232,36 @@ QVector<QPoint> MainWindow::expandSegment(const QPoint& currentPos)
         perimeterCoordinates.append(currentPos);
         return perimeterCoordinates;
     }
+
+
+    //create an array of QColor objects that have red, green, and blue values
+    //within neighborColorRange of the range from neighborColor,
+
+    // Calculate the color range
+    int redRange = currentColor.red() * currentColorRange;
+    int greenRange = currentColor.green() * currentColorRange;
+    int blueRange = currentColor.blue() * currentColorRange;
+
+    // Create an array to store the matching colors
+    QVector<QColor> matchingColors;
+
+    // Iterate over the color range
+    for (int r = currentColor.red() - redRange; r <= currentColor.red() + redRange; ++r)
+    {
+        for (int g = currentColor.green() - greenRange; g <= currentColor.green() + greenRange; ++g)
+        {
+            for (int b = currentColor.blue() - blueRange; b <= currentColor.blue() + blueRange; ++b)
+            {
+                // Create a QColor with the current RGB values
+                QColor color(r, g, b);
+
+                // Add the color to the matchingColors array
+                matchingColors.append(color);
+            }
+        }
+    }
+    qDebug() << "MainWindow::expandSegment, matching Colors size:" << matchingColors.size();
+
 
     while (!queue.isEmpty())
     {
@@ -253,7 +298,9 @@ QVector<QPoint> MainWindow::expandSegment(const QPoint& currentPos)
                     {
                         // Check if the neighbor is a perimeter point
                         QColor neighborColor = segmentedImage.pixelColor(neighbor);
-                        if (neighborColor != currentColor)
+
+                        //if (neighborColor != currentColor)
+                        if (!matchingColors.contains(neighborColor))
                         {
                             // Add the perimeter point to the perimeter coordinates
                             perimeterCoordinates.append(neighbor);
@@ -262,6 +309,7 @@ QVector<QPoint> MainWindow::expandSegment(const QPoint& currentPos)
 
                         // Enqueue the neighbor for processing
                         queue.enqueue(neighbor);
+                        //qDebug() << "expandSegment, queue size:" << queue.size();
                     }
                 }
             }
@@ -275,10 +323,133 @@ QVector<QPoint> MainWindow::expandSegment(const QPoint& currentPos)
     }
     qDebug() << "MainWindow::expandSegment, perimeterCoordinates size" << perimeterCoordinates.size();
     qDebug() << "MainWindow::expandSegment, segmentCoordinates size" << segmentCoordinates.size();
-    return perimeterCoordinates;
+
+    QVector<QPoint> perimeterCoordinates2;
+
+    for (const QPoint& coordinate : segmentCoordinates)
+    {
+        QPoint neighbors[] = {
+            QPoint(coordinate.x(), coordinate.y() - 1), // up
+            QPoint(coordinate.x(), coordinate.y() + 1), // down
+            QPoint(coordinate.x() - 1, coordinate.y()), // left
+            QPoint(coordinate.x() + 1, coordinate.y())  // right
+        };
+
+        bool isEdge = false;
+
+        for (const QPoint& neighbor : neighbors)
+        {
+            if (!segmentCoordinates.contains(neighbor))
+            {
+                isEdge = true;
+                break;
+            }
+        }
+
+        if (isEdge)
+        {
+            perimeterCoordinates2.append(coordinate);
+        }
+    }
+
+    //return perimeterCoordinates;
+    return perimeterCoordinates2;
 }
 
-void MainWindow::calculateSegmentProperties(const QVector<QPoint>& perimeterCoordinates)
+/*
+// depth-first search (DFS) algorithm.
+// The DFS algorithm explores a path as deeply as possible before backtracking and exploring other paths
+
+QVector<QPoint> MainWindow::expandSegment(const QPoint& currentPos)
+{
+    QVector<QPoint> perimeterCoordinates;
+    QVector<QPoint> segmentCoordinates;
+    QStack<QPoint> stack; // Change QQueue to QStack for DFS
+    stack.push(currentPos); // Push instead of enqueue for DFS
+
+    const QColor currentColor = segmentedImage.pixelColor(currentPos);
+
+    qDebug() << "MainWindow::expandSegment, Current Color:" << currentColor;
+
+    if (currentColor == qRgb(0, 0, 0))
+    {
+        perimeterCoordinates.append(currentPos);
+        return perimeterCoordinates;
+    }
+
+    int redRange = currentColor.red() * currentColorRange;
+    int greenRange = currentColor.green() * currentColorRange;
+    int blueRange = currentColor.blue() * currentColorRange;
+
+    QVector<QColor> matchingColors;
+
+    for (int r = currentColor.red() - redRange; r <= currentColor.red() + redRange; ++r)
+    {
+        for (int g = currentColor.green() - greenRange; g <= currentColor.green() + greenRange; ++g)
+        {
+            for (int b = currentColor.blue() - blueRange; b <= currentColor.blue() + blueRange; ++b)
+            {
+                QColor color(r, g, b);
+                matchingColors.append(color);
+            }
+        }
+    }
+    qDebug() << "MainWindow::expandSegment, matching Colors size:" << matchingColors.size();
+
+    while (!stack.isEmpty()) // Change the loop condition
+    {
+        QPoint pos = stack.pop(); // Pop instead of dequeue for DFS
+        if (segmentCoordinates.contains(pos))
+        {
+            continue;
+        }
+
+        segmentCoordinates.append(pos);
+
+        if (segmentedImage.pixelColor(pos) == currentColor)
+        {
+            QPoint neighbors[] = {
+                QPoint(pos.x(), pos.y() - 1), // up
+                QPoint(pos.x(), pos.y() + 1), // down
+                QPoint(pos.x() - 1, pos.y()), // left
+                QPoint(pos.x() + 1, pos.y())  // right
+            };
+
+            bool isPerimeter = false;
+
+            for (const QPoint& neighbor : neighbors)
+            {
+                if (neighbor.x() >= 0 && neighbor.x() < segmentedImage.width() &&
+                    neighbor.y() >= 0 && neighbor.y() < segmentedImage.height())
+                {
+                    if (!segmentCoordinates.contains(neighbor))
+                    {
+                        QColor neighborColor = segmentedImage.pixelColor(neighbor);
+
+                        if (!matchingColors.contains(neighborColor))
+                        {
+                            perimeterCoordinates.append(neighbor);
+                            isPerimeter = true;
+                        }
+
+                        stack.push(neighbor); // Push instead of enqueue for DFS
+                    }
+                }
+            }
+
+            if (!isPerimeter)
+            {
+                perimeterCoordinates.append(pos);
+            }
+        }
+    }
+    qDebug() << "MainWindow::expandSegment, perimeterCoordinates size" << perimeterCoordinates.size();
+    qDebug() << "MainWindow::expandSegment, segmentCoordinates size" << segmentCoordinates.size();
+    return perimeterCoordinates;
+}
+*/
+
+void MainWindow::calculateSegmentProperties(const QVector<QPoint>& perimeterCoordinates2)
 {
     // Calculate the area of the segment (in % of the total image area)
 
@@ -291,14 +462,17 @@ void MainWindow::calculateSegmentProperties(const QVector<QPoint>& perimeterCoor
 
     // Initialize the area to 0
     double segmentArea = 0.0;
-
+/*
+    // Sort the perimeterCoordinates in ascending order
+    std::sort(perimeterCoordinates.begin(), perimeterCoordinates.end());
+*/
     // Iterate over the perimeter coordinates
-    int numPoints = perimeterCoordinates.size();
+    int numPoints = perimeterCoordinates2.size();
     for (int i = 0; i < numPoints; i++)
     {
         // Get the current and next point
-        const QPoint& currentPoint = perimeterCoordinates[i];
-        const QPoint& nextPoint = perimeterCoordinates[(i + 1) % numPoints]; // Wrap around to the first point
+        const QPoint& currentPoint = perimeterCoordinates2[i];
+        const QPoint& nextPoint = perimeterCoordinates2[(i + 1) % numPoints]; // Wrap around to the first point
 
         // Calculate the cross product of the current and next point
         double crossProduct = currentPoint.x() * nextPoint.y() - nextPoint.x() * currentPoint.y();
@@ -314,7 +488,6 @@ void MainWindow::calculateSegmentProperties(const QVector<QPoint>& perimeterCoor
 
     // Get the current time
     QTime currentTime = QTime::currentTime();
-
     // Convert the current time to QString format
     QString timeString = currentTime.toString("hh:mm:ss");
 
@@ -322,7 +495,7 @@ void MainWindow::calculateSegmentProperties(const QVector<QPoint>& perimeterCoor
     QString perimeterString;
     perimeterString.append("Start:" + timeString).append("\n");
     // Iterate over the coordinates and format them
-    for (const QPoint& point : perimeterCoordinates)
+    for (const QPoint& point : perimeterCoordinates2)
     {
         QString pointString = QString("X=%1, Y=%2").arg(point.x()).arg(point.y());
         perimeterString.append(pointString).append("\n");
